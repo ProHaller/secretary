@@ -1,5 +1,4 @@
 use crate::config::config::Config;
-use crate::models::audio_note::AudioNote;
 use reqwest::Client;
 use serde_json::json;
 
@@ -38,6 +37,7 @@ impl GptClient {
 
         let response_json: serde_json::Value = response.json().await?;
 
+        println!("{:#?}", response_json);
         response_json["choices"][0]["message"]["content"]
             .as_str()
             .map(str::to_string)

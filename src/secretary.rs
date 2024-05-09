@@ -41,7 +41,7 @@ impl Secretary {
             .collect();
 
         for metadata in audio_files_metadata {
-            let audio_note = AudioNote::new_from_metadata(&metadata);
+            let mut audio_note = AudioNote::new_from_metadata(&metadata);
             if audio_note.check_if_new_file(&PathBuf::from(&self.config.obsidian_vault_path)) {
                 self.audio_notes.push(audio_note);
             }
@@ -51,12 +51,10 @@ impl Secretary {
 
     pub async fn download_audio_files(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         for audio_note in self.audio_notes.iter_mut() {
-            let audio_path = audio_note
-                .local_audio_file_path
-                .to_str()
-                .unwrap()
-                .to_string();
-            let audio_note_bytes = self.dropbox_client.download_file(&audio_path).await?;
+            let audio_note_bytes = self
+                .dropbox_client
+                .download_file(&audio_note.audio_file_metadata.path_lower)
+                .await?;
             audio_note::AudioNote::save_audio_file(audio_note, audio_note_bytes).await?;
         }
         Ok(())
@@ -73,6 +71,7 @@ impl Secretary {
         let model: [&str; 2] = ["gpt-3.5-turbo", "gpt-4"];
         let prompt_template = std::fs::read_to_string("prompt.md")?;
         for audio_note in self.audio_notes.iter_mut() {
+            println!("{}", audio_note);
             let prompt = prompt_template.replace("{transcription}", &audio_note.transcription);
             audio_note.note = self.gpt_client.fetch_completion(&prompt, model[0]).await?;
         }
@@ -80,17 +79,31 @@ impl Secretary {
         Ok(())
     }
 
-    pub async fn save_note(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn clean_notes(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        for audio_note in self.audio_notes.iter_mut() {
+            let audio_file_name = &audio_note.audio_file_metadata.name;
+            if let Some((part1, part2)) = audio_note.note.split_once("---") {
+                audio_note.note = format!(
+                    "{}---\naudio_file_name: {}\n{}",
+                    part1, audio_file_name, part2
+                );
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn save_notes(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         for note in &mut self.audio_notes {
-            let _ = note.make_note_name_from_title().await;
+            let _name_without_extension = note.make_note_name_from_title().await;
             note.make_note_path(&self.config.obsidian_vault_path)
                 .await?;
 
             // Construct a unique file name for each note to prevent overwrites
-            let file_path = format!("{}{}", &self.config.obsidian_vault_path, "_note");
+            let file_path = &note.note_path;
 
             // Asynchronously write the note content to the file
             tokio::fs::write(file_path, &note.note).await?;
+            println!("Note saved: {}", file_path.display());
         }
         Ok(())
     }

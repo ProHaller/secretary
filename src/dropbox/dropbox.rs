@@ -1,11 +1,11 @@
 use crate::config::config::Config;
 use crate::models::dropbox_file_metadata::DropboxFileMetadata;
 use reqwest::Client;
-
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashSet;
-
+use std::env::VarError;
+use std::error::Error;
 pub struct DropboxClient {
     client: Client,
     access_token: String,
@@ -33,10 +33,15 @@ impl DropboxClient {
     pub fn audio_file_extensions() -> HashSet<&'static str> {
         let mut exts = HashSet::new();
         exts.insert(".mp3");
+        exts.insert(".mp4");
+        exts.insert(".mpeg");
+        exts.insert(".mpga");
         exts.insert(".wav");
         exts.insert(".m4a");
         exts.insert(".flac");
         exts.insert(".ogg");
+        exts.insert(".oga");
+        exts.insert(".webm");
         exts
     }
 
@@ -61,33 +66,37 @@ impl DropboxClient {
 
         if response.status().is_success() {
             let response_body: DropboxListFolderResponse = response.json().await?;
+            println!("Listed files: {:?}", response_body.entries);
             Ok(response_body.entries)
         } else {
             Err(format!("Failed to list files: {}", response.text().await?).into())
         }
     }
 
-    pub async fn download_file(
-        &self,
-        file_path: &String,
-    ) -> Result<Audio, Box<dyn std::error::Error>> {
+    pub async fn download_file(&self, file_path: &str) -> Result<Vec<u8>, Box<dyn Error>> {
         let url = "https://content.dropboxapi.com/2/files/download";
+        let arg = json!({ "path": file_path });
+
         let response = self
             .client
             .post(url)
-            .header("Authorization", format!("Bearer {}", self.access_token))
-            .header("Dropbox-API-Arg", format!(r#"{{"path":"{}"}}"#, file_path))
+            .bearer_auth(&self.access_token)
+            .header("Dropbox-API-Arg", serde_json::to_string(&arg)?)
             .send()
             .await?;
 
         if response.status().is_success() {
             let file_content = response.bytes().await?;
+            println!("Downloaded file: {}", file_path);
             Ok(file_content.to_vec())
         } else {
-            let error_message = format!("Failed to download file: {}", file_path);
-            Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                error_message,
+            let error_body = response.text().await?;
+            Err(Box::new(tokio::io::Error::new(
+                tokio::io::ErrorKind::Other,
+                format!(
+                    "Failed to download file: '{}'. Server responded with: '{}'",
+                    file_path, error_body
+                ),
             )))
         }
     }

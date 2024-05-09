@@ -3,11 +3,8 @@ use std::fmt;
 use std::fs;
 use tokio::io::AsyncWriteExt;
 use tempfile::NamedTempFile;
-use std::time::SystemTime;
 use std::path::PathBuf;
 use std::error::Error;
-use std::{io, io::BufRead};
-use crate::utils::file_utils::parse_timestamp_to_system_time;
 
 pub struct AudioNote {
     pub audio_file_metadata: DropboxFileMetadata,
@@ -35,79 +32,72 @@ impl AudioNote{
             note_path,
         }
     }
-
-    pub fn check_if_new_file(&self, path: &PathBuf) -> bool {
-        let creation_date_system_time = parse_timestamp_to_system_time(&self.audio_file_metadata.server_modified)
-        .unwrap_or_else(|_| SystemTime::now()); 
-
-        let entries = match fs::read_dir(path) {
+    
+    pub fn check_if_new_file(&mut self, path: &PathBuf) -> bool {
+        // Attempt to read the directory entries
+        let dir_entries = match fs::read_dir(path) {
             Ok(entries) => entries,
-            Err(_) => return true,
+            Err(e) => {
+                eprintln!("Failed to read directory: {}", e);
+                return false;  // Decide on default behavior in case of error
+            }
         };
 
-        for entry in entries {
+        // Iterate over each entry in the directory
+        for entry in dir_entries {
             let entry = match entry {
-                Ok(entry) => entry,
+                Ok(e) => e,
                 Err(e) => {
                     eprintln!("Error reading directory entry: {}", e);
-                    continue;
+                    continue;  // Continue with next entry on error
                 }
             };
+            let entry_path = entry.path();
 
-            let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "md") {
-                let metadata = match entry.metadata() {
-                    Ok(metadata) => metadata,
-                    Err(_) => continue,
+            // Check if the file has a '.md' extension
+            if entry_path.extension().and_then(std::ffi::OsStr::to_str) == Some("md") {
+                // Read the content of the file
+                let content = match fs::read_to_string(&entry_path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        eprintln!("Error reading file '{}': {}", entry_path.display(), e);
+                        continue;  // Continue with next file on error
+                    }
                 };
 
-                if let Ok(modified) = metadata.modified() {
-                    if modified > creation_date_system_time {
-                        if let Ok(file) = fs::File::open(&path) {
-                            let reader = io::BufReader::new(file);
-                            let mut in_front_matter = false;
-
-                            for line in reader.lines() {
-                                match line {
-                                    Ok(line) => {
-                                        if line.trim() == "---" {
-                                            in_front_matter = !in_front_matter;
-                                        } else if in_front_matter && line.contains(&format!("note_name: {}", self.note_name)) {
-                                            return false;
-                                        }
-                                    },
-                                    Err(e) => {
-                                        eprintln!("Error reading lines from file {}: {}", path.display(), e);
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
+                // Check for the specific marker in the content
+                let marker = format!("audio_file_name: {}", self.audio_file_metadata.name);
+                if content.contains(&marker) {
+                    return false;
                 }
             }
         }
 
-        true 
+        // If no matching file is found or all files were processed with errors, return true
+        true
     }
+
+
+
+
+
+
     pub async fn save_audio_file(&mut self, audio_file: Vec<u8>) -> Result<&AudioNote, Box<dyn Error>> {
         // Create a temporary file in the default temporary directory.
-        let (temp_file, temp_path) = NamedTempFile::new()?.into_parts();
+        let temp_file = NamedTempFile::new()?;
 
         // Write the audio file content to the temporary file asynchronously using tokio::fs::File.
-        let mut file = tokio::fs::File::from_std(temp_file);
+        let mut file = tokio::fs::File::from_std(temp_file.reopen()?);
         file.write_all(&audio_file).await?;
         file.flush().await?;
 
-        // Prepare to persist the file.
-        let persist_path = temp_path.to_path_buf();
-        let persisted_file = NamedTempFile::new_in(&persist_path)?;
-        let persisted_path = persisted_file.into_temp_path();
+        // Persist the temporary file and update the path.
+        let persisted_path = temp_file.into_temp_path();
+        let persisted_path_buf = persisted_path.to_path_buf();
+        persisted_path.persist(&persisted_path_buf)?;
+        self.local_audio_file_path = persisted_path_buf;
 
-        // Persist the file and update the path
-        persisted_path.persist(&temp_path)?;
-        self.local_audio_file_path = persist_path;
-
+        println!("Audio file saved to: {}", self.local_audio_file_path.display());
         Ok(self)
     }
 
@@ -123,7 +113,7 @@ impl AudioNote{
 
     pub async fn make_note_path (&mut self, path: &String) -> Result<&mut Self, Box<dyn Error>> {
         self.note_path = PathBuf::from(path);
-        self.note_path.push(&self.note_name);
+        self.note_path.push(format!("{}.md", &self.note_name));
         Ok(self)
     }
 

@@ -18,17 +18,13 @@ impl WhisperClient {
     }
 
     pub async fn transcribe_file(&self, audio_note: &mut AudioNote) -> Result<(), Box<dyn Error>> {
-        let file_name = audio_note
-            .local_audio_file_path
-            .to_str()
-            .ok_or_else(|| "Invalid file path".to_string())?
-            .to_owned();
+        let file_name = &audio_note.note_name;
 
         let audio_bytes = fs::read(&audio_note.local_audio_file_path)?;
 
         let form = multipart::Form::new().text("model", "whisper-1").part(
             "file",
-            multipart::Part::bytes(audio_bytes).file_name(file_name),
+            multipart::Part::bytes(audio_bytes).file_name(file_name.clone()),
         );
 
         let url = "https://api.openai.com/v1/audio/transcriptions";
@@ -44,6 +40,7 @@ impl WhisperClient {
 
         if let Some(text) = response_json["text"].as_str() {
             audio_note.transcription = text.to_string();
+            println!("Transcription: {}", text);
             Ok(())
         } else if let Some(error) = response_json["error"]["message"].as_str() {
             Err(format!("Error during transcription: {}", error).into())
