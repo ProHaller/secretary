@@ -3,11 +3,8 @@ use crate::models::dropbox_file_metadata::DropboxFileMetadata;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::json;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::error::Error;
-use std::sync::{Arc, Mutex};
-use warp::Filter;
 
 #[derive(Clone)]
 pub struct DropboxClient {

@@ -16,9 +16,8 @@ use oauth2::{
     AuthUrl, AuthorizationCode, ClientId, ClientSecret, CsrfToken, RedirectUrl, Scope, TokenUrl,
 };
 use reqwest::StatusCode;
-use secretary2::config::config::Config;
-use secretary2::dropbox::dropbox;
-use secretary2::secretary::Secretary;
+use secretary::config::config::Config;
+use secretary::secretary::Secretary;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::oneshot;

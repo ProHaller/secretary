@@ -2777,7 +2777,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "secretary2"
+name = "secretary"
 version = "0.1.0"
 dependencies = [
  "assert_cmd",
