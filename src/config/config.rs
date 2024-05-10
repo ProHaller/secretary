@@ -1,3 +1,7 @@
+// TODO: Extract the prompt logic into a separate function to keep the Config struct focused. [[2]](https://poe.com/citation?message_id=175047583702&citation=2)
+// TODO: Consider validating the user input to ensure properly formatted tokens/keys are provided. [[2]](https://poe.com/citation?message_id=175047583702&citation=2)
+// TODO: Make the prompt messages configurable via the config file. [[2]](https://poe.com/citation?message_id=175047583702&citation=2)[[3]](https://poe.com/citation?message_id=175047583702&citation=3)
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -14,6 +18,7 @@ pub struct Config {
     pub dropbox_audio_path: String,
 }
 
+// TODO: Update the flow to take into account the Oauth2 logic.
 impl Config {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Box<dyn std::error::Error>> {
         let mut config: Config;

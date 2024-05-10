@@ -1,3 +1,7 @@
+// TODO: Support specifying the assistant ID as a parameter to process_transcriptions(). [[5]](https://poe.com/citation?message_id=175047583702&citation=5)
+// TODO: Make the model array a constant at the top of the file. [[5]](https://poe.com/citation?message_id=175047583702&citation=5)
+// TODO: Load the prompt template at startup rather than on each iteration. [[5]](https://poe.com/citation?message_id=175047583702&citation=5)
+// TODO: Provide more informative error messages on failure. [[5]](https://poe.com/citation?message_id=175047583702&citation=5)
 use crate::config::config::Config;
 use crate::dropbox::dropbox::DropboxClient;
 use crate::models::audio_note::{self, AudioNote};
