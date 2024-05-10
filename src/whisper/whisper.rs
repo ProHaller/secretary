@@ -5,6 +5,7 @@ use serde_json::Value;
 use std::error::Error;
 use std::fs;
 
+#[derive(Clone)]
 pub struct WhisperClient {
     client: Client,
     api_key: String,
@@ -40,7 +41,6 @@ impl WhisperClient {
 
         if let Some(text) = response_json["text"].as_str() {
             audio_note.transcription = text.to_string();
-            println!("Transcription: {}", text);
             Ok(())
         } else if let Some(error) = response_json["error"]["message"].as_str() {
             Err(format!("Error during transcription: {}", error).into())

@@ -2,12 +2,12 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     pub dropbox_client_id: String,
     pub dropbox_client_secret: String,
     pub dropbox_access_token: String,
-    pub dropbox_refresh_token: String,
+    pub dropbox_auth_token: String,
     pub whisper_api_key: String,
     pub openai_api_key: String,
     pub obsidian_vault_path: String,
@@ -22,7 +22,7 @@ impl Config {
             println!("Config file not found. Creating a new one.");
             config = Config {
                 dropbox_access_token: "".to_string(),
-                dropbox_refresh_token: "".to_string(),
+                dropbox_auth_token: "".to_string(),
                 whisper_api_key: "".to_string(),
                 openai_api_key: "".to_string(),
                 obsidian_vault_path: "".to_string(),
@@ -53,7 +53,6 @@ impl Config {
 
     fn has_empty_values(&self) -> bool {
         self.dropbox_access_token.is_empty()
-            || self.dropbox_refresh_token.is_empty()
             || self.whisper_api_key.is_empty()
             || self.openai_api_key.is_empty()
             || self.obsidian_vault_path.is_empty()
@@ -65,8 +64,6 @@ impl Config {
     fn prompt_and_update_if_empty(&mut self) {
         self.dropbox_access_token =
             Config::prompt_if_empty(self.dropbox_access_token.clone(), "Dropbox Access Token");
-        self.dropbox_refresh_token =
-            Config::prompt_if_empty(self.dropbox_refresh_token.clone(), "Dropbox Refresh Token");
         self.whisper_api_key =
             Config::prompt_if_empty(self.whisper_api_key.clone(), "Whisper API Key");
         self.openai_api_key =

@@ -3,14 +3,21 @@ use crate::models::dropbox_file_metadata::DropboxFileMetadata;
 use reqwest::Client;
 use serde::Deserialize;
 use serde_json::json;
+use std::collections::HashMap;
 use std::collections::HashSet;
-use std::env::VarError;
 use std::error::Error;
+use std::sync::{Arc, Mutex};
+use warp::Filter;
+
+#[derive(Clone)]
 pub struct DropboxClient {
-    client: Client,
-    access_token: String,
-    audio_path: String,
+    pub client: Client,
+    pub access_token: String,
+    pub dropbox_client_id: String,
+    pub dropbox_client_secret: String,
+    pub audio_path: String,
 }
+
 pub type Audio = Vec<u8>;
 
 #[derive(Debug, Deserialize)]
@@ -21,11 +28,15 @@ pub struct DropboxListFolderResponse {
 impl DropboxClient {
     pub fn new(config: &Config) -> Self {
         let access_token = config.dropbox_access_token.clone();
+        let dropbox_client_id = config.dropbox_client_id.clone();
+        let dropbox_client_secret = config.dropbox_client_secret.clone();
         let client = Client::new();
         let audio_path = config.dropbox_audio_path.clone();
         DropboxClient {
             client,
             access_token,
+            dropbox_client_id,
+            dropbox_client_secret,
             audio_path,
         }
     }
@@ -47,7 +58,7 @@ impl DropboxClient {
 
     pub async fn list_files(&self) -> Result<Vec<DropboxFileMetadata>, Box<dyn std::error::Error>> {
         let url = "https://api.dropboxapi.com/2/files/list_folder";
-        let body = serde_json::json!({
+        let body = json!({
             "path": self.audio_path,
             "recursive": false,
             "include_media_info": false,

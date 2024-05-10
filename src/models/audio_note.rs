@@ -6,6 +6,7 @@ use tempfile::NamedTempFile;
 use std::path::PathBuf;
 use std::error::Error;
 
+#[derive(Clone)]
 pub struct AudioNote {
     pub audio_file_metadata: DropboxFileMetadata,
     pub transcription: String,

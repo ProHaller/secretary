@@ -6,6 +6,7 @@ use crate::openai::gpt::GptClient;
 use crate::whisper::whisper::WhisperClient;
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct Secretary {
     pub config: Config,
     pub dropbox_client: DropboxClient,
@@ -66,7 +67,8 @@ impl Secretary {
         }
         Ok(())
     }
-
+    // TODO: Implement the multi call system with function calling.
+    // TODO: Add support for assistant id.
     pub async fn process_transcriptions(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let model: [&str; 2] = ["gpt-3.5-turbo", "gpt-4"];
         let prompt_template = std::fs::read_to_string("prompt.md")?;
@@ -82,12 +84,26 @@ impl Secretary {
     pub async fn clean_notes(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         for audio_note in self.audio_notes.iter_mut() {
             let audio_file_name = &audio_note.audio_file_metadata.name;
+
+            // Split the note into two parts and add audio file name
             if let Some((part1, part2)) = audio_note.note.split_once("---") {
                 audio_note.note = format!(
                     "{}---\naudio_file_name: {}\n{}",
                     part1, audio_file_name, part2
                 );
+            } else {
+                // If the split was unsuccessful, add audio file name at the start
+                audio_note.note = format!(
+                    "{}\naudio_file_name: {}\n",
+                    audio_note.note, audio_file_name
+                );
             }
+
+            // Append the transcription at the end
+            audio_note.note = format!(
+                "{}\n## Transcription\n{}",
+                audio_note.note, audio_note.transcription
+            );
         }
         Ok(())
     }

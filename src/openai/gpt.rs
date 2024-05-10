@@ -2,6 +2,7 @@ use crate::config::config::Config;
 use reqwest::Client;
 use serde_json::json;
 
+#[derive(Clone)]
 pub struct GptClient {
     client: Client,
     api_key: String,
