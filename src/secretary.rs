@@ -74,12 +74,12 @@ impl Secretary {
     // TODO: Implement the multi call system with function calling.
     // TODO: Add support for assistant id.
     pub async fn process_transcriptions(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let model: [&str; 2] = ["gpt-3.5-turbo", "gpt-4"];
+        let model: [&str; 3] = ["gpt-3.5-turbo", "gpt-4", "gpt-4o"];
         let prompt_template = std::fs::read_to_string("prompt.md")?;
         for audio_note in self.audio_notes.iter_mut() {
             println!("{}", audio_note);
             let prompt = prompt_template.replace("{transcription}", &audio_note.transcription);
-            audio_note.note = self.gpt_client.fetch_completion(&prompt, model[0]).await?;
+            audio_note.note = self.gpt_client.fetch_completion(&prompt, model[2]).await?;
         }
 
         Ok(())
